@@ -57,6 +57,7 @@ def post_to_vk(text):
         "https://vk.com",
         params={"group_id": VK_GROUP_ID, "access_token": VK_TOKEN, "v": "5.199"}
     ).json()
+    print("Ответ getWallUploadServer:", upload_url_resp)
     upload_url = upload_url_resp["response"]["upload_url"]
 
     # 2. Загружаем картинку
@@ -75,6 +76,7 @@ def post_to_vk(text):
             "v": "5.199"
         }
     ).json()
+    print("Ответ saveWallPhoto:", save_resp)
     
     photo_info = save_resp["response"][0]
     attachment = f"photo{photo_info['owner_id']}_{photo_info['id']}"
@@ -98,3 +100,4 @@ if __name__ == "__main__":
     print("Сгенерирован текст:", quote)
     download_image()
     post_to_vk(quote)
+
