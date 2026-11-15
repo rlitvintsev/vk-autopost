@@ -9,7 +9,7 @@ TOPICS = [
     "одинокий волк, ночь, дождь, верность своим принципам",
     "черная BMW на ночной трассе, туман, путь к цели",
     "пацанская дружба, брат за брата, проверка временем",
-    "спортзал, турники, дисциплина, работа над собой без оправданий",
+    "спортзал, дисциплина, работа над собой без оправданий",
     "советские панельки ночью, тишина, размышления о жизни"
 ]
 
@@ -59,7 +59,7 @@ def generate_image():
     seed = random.randint(1, 999999)
     headers = {"User-Agent": "Mozilla/5.0"}
     
-       targets = [
+    targets = [
         (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1400, "seed": seed, "model": "flux", "nologo": "true"}),
         (".".join(["picsum", "photos"]), ["seed", seed, "1080", "1350"], None)
     ]
@@ -71,8 +71,8 @@ def generate_image():
             if resp.status_code == 200 and len(resp.content) > 10000:
                 with open("post.jpg", "wb") as f:
                     f.write(resp.content)
-                # Делаем атмосферную ч/б обработку с повышенным контрастом
                 with Image.open("post.jpg") as img:
+                    img = img.crop((0, 0, img.width, img.height - 50))
                     img = img.convert("L")
                     img = ImageEnhance.Contrast(img).enhance(1.25)
                     img = img.convert("RGB")
