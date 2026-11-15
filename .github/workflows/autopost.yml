@@ -2,7 +2,6 @@ name: VK AutoPost
 
 on:
   schedule:
-    # Запуск каждые 3 часа (по времени UTC)
     - cron: '0 */3 * * *'
   workflow_dispatch:
 
@@ -19,10 +18,13 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests pillow
+        run: pip install requests
 
-      - name: Run bot
-        env:
-          VK_TOKEN: ${{ secrets.VK_TOKEN }}
-          VK_GROUP_ID: ${{ secrets.VK_GROUP_ID }}
-        run: python get_link.py
+      - name: Update feed
+        run: |
+          python bot.py
+          git config user.name "bot"
+          git config user.email "bot@://github.com"
+          git add feed.xml
+          git commit -m "new post" || exit 0
+          git push
