@@ -69,8 +69,9 @@ def generate_text():
     return random.choice(BACKUP_QUOTES)
 
 def apply_text_overlay(img, quote_text):
-    # Всегда отрезаем нижние 75px, чтобы гарантированно убрать логотип pollinations.ai
-    img = img.crop((0, 0, img.width, max(100, img.height - 75)))
+    # Отрезаем нижние 85px, чтобы гарантированно убрать логотип pollinations.ai
+    crop_h = max(100, img.height - 85)
+    img = img.crop((0, 0, img.width, crop_h))
     
     # Делаем черно-белым, повышаем контраст и приводим к квадрату 1080x1080
     img = img.convert("L")
@@ -79,7 +80,7 @@ def apply_text_overlay(img, quote_text):
     img = img.convert("RGBA")
 
     # Накладываем темный слой поверх картинки для читаемости текста
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 140))
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 145))
     img = Image.alpha_composite(img, overlay)
 
     draw = ImageDraw.Draw(img)
@@ -105,8 +106,8 @@ def apply_text_overlay(img, quote_text):
 
     # Рисуем каждую строку по центру с тенью
     for i, line in enumerate(lines):
-        bbox = draw.textbbox((0, 0), line, font=font_main)
-        text_w = bbox[2] - bbox[0]
+        left, top, right, bottom = draw.textbbox((0, 0), line, font=font_main)
+        text_w = right - left
         x = (1080 - text_w) // 2
         y = start_y + i * line_height
 
@@ -115,10 +116,10 @@ def apply_text_overlay(img, quote_text):
 
     # Рисуем водяной знак сообщества внизу
     watermark = "БРАТ ЗА БРАТА"
-    wm_bbox = draw.textbbox((0, 0), watermark, font=font_wm)
-    wm_w = wm_bbox[2] - wm_bbox[0]
+    wm_left, wm_top, wm_right, wm_bottom = draw.textbbox((0, 0), watermark, font=font_wm)
+    wm_w = wm_right - wm_left
     wm_x = (1080 - wm_w) // 2
-    draw.text((wm_x, 995), watermark, font=font_wm, fill=(255, 255, 255, 170))
+    draw.text((wm_x, 995), watermark, font=font_wm, fill=(255, 255, 255, 175))
 
     return img.convert("RGB")
 
@@ -129,7 +130,7 @@ def generate_image(quote_text):
     
     targets = [
         (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1150, "seed": seed, "model": "flux", "nologo": "true"}),
-        (".".join(["picsum", "photos"]), ["seed", seed, "1080", "1150"], None)
+        (".".join(["picsum", "photos"]), ["seed", str(seed), "1080", "1150"], None)
     ]
     
     for host, parts, params in targets:
@@ -179,4 +180,3 @@ if __name__ == "__main__":
 
     with open("feed.xml", "w", encoding="utf-8") as f:
         f.write(rss)
-
