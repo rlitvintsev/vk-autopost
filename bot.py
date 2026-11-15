@@ -40,7 +40,7 @@ def generate_text():
     seed = random.randint(1, 999999)
     
     urls = [
-        f"https://text.pollinations.ai/{encoded_prompt}?seed={seed}",
+        f"https://pollinations.ai{encoded_prompt}?seed={seed}",
         f"https://pollinations.ai{encoded_prompt}?seed={seed}"
     ]
     
@@ -60,12 +60,24 @@ def download_image():
     img_prompt = random.choice(IMAGE_PROMPTS)
     seed = random.randint(1, 999999)
     encoded_prompt = urllib.parse.quote(img_prompt)
-    url = f"https://pollinations.ai{encoded_prompt}?width=1080&height=1350&seed={seed}&nologo=true"
     
-    resp = requests.get(url, timeout=60)
-    resp.raise_for_status()
-    with open("post.jpg", "wb") as f:
-        f.write(resp.content)
+    img_urls = [
+        f"https://pollinations.ai{encoded_prompt}?width=1080&height=1350&seed={seed}&nologo=true",
+        f"https://picsum.photos{seed}/1080/1350?grayscale"
+    ]
+    
+    for url in img_urls:
+        try:
+            resp = requests.get(url, timeout=60)
+            if resp.status_code == 200 and len(resp.content) > 5000:
+                with open("post.jpg", "wb") as f:
+                    f.write(resp.content)
+                print("Картинка успешно скачана с:", url[:40])
+                return
+        except Exception as e:
+            print("Ошибка загрузки картинки:", e)
+            
+    raise RuntimeError("Не удалось скачать картинку ни с одного источника")
 
 def post_to_vk(text):
     # 1. Получаем сервер для загрузки фото на стену
@@ -117,5 +129,4 @@ if __name__ == "__main__":
     print("Сгенерирован текст:", quote)
     download_image()
     post_to_vk(quote)
-
 
