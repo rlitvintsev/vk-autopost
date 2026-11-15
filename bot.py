@@ -40,7 +40,7 @@ def ensure_font():
         font_url = "https://github.com"
         try:
             r = requests.get(font_url, timeout=20)
-            if r.status_code == 200:
+            if r.status_code == 200 and len(r.content) > 10000:
                 with open(font_path, "wb") as f:
                     f.write(r.content)
         except Exception as e:
@@ -69,19 +69,24 @@ def generate_text():
     return random.choice(BACKUP_QUOTES)
 
 def apply_text_overlay(img, quote_text):
-    # Приводим картинку к квадратному формату 1080x1080 для идеального вида в ленте ВК
+    # Всегда отрезаем нижние 75px, чтобы гарантированно убрать логотип pollinations.ai
+    img = img.crop((0, 0, img.width, max(100, img.height - 75)))
+    
+    # Делаем черно-белым, повышаем контраст и приводим к квадрату 1080x1080
+    img = img.convert("L")
+    img = ImageEnhance.Contrast(img).enhance(1.25)
     img = img.resize((1080, 1080), Image.Resampling.LANCZOS)
     img = img.convert("RGBA")
 
-    # Накладываем темную виньетку/затемнение, чтобы белый текст читался идеально
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 135))
+    # Накладываем темный слой поверх картинки для читаемости текста
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 140))
     img = Image.alpha_composite(img, overlay)
 
     draw = ImageDraw.Draw(img)
     font_path = ensure_font()
 
     if font_path:
-        font_main = ImageFont.truetype(font_path, 46)
+        font_main = ImageFont.truetype(font_path, 48)
         font_wm = ImageFont.truetype(font_path, 26)
         try:
             font_main.set_variation_by_axes([700])
@@ -92,22 +97,20 @@ def apply_text_overlay(img, quote_text):
         font_main = ImageFont.load_default()
         font_wm = ImageFont.load_default()
 
-    # Разбиваем цитату на аккуратные строки по 32 символа
-    lines = textwrap.wrap(quote_text, width=32)
-    line_height = 62
+    # Разбиваем цитату на строки по 30 символов
+    lines = textwrap.wrap(quote_text, width=30)
+    line_height = 66
     total_text_height = len(lines) * line_height
     start_y = (1080 - total_text_height) // 2 - 20
 
-    # Рисуем каждую строку с мягкой черной тенью по центру
+    # Рисуем каждую строку по центру с тенью
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font_main)
         text_w = bbox[2] - bbox[0]
         x = (1080 - text_w) // 2
         y = start_y + i * line_height
 
-        # Тень
-        draw.text((x + 3, y + 3), line, font=font_main, fill=(0, 0, 0, 220))
-        # Основной белый текст
+        draw.text((x + 3, y + 3), line, font=font_main, fill=(0, 0, 0, 230))
         draw.text((x, y), line, font=font_main, fill=(255, 255, 255, 255))
 
     # Рисуем водяной знак сообщества внизу
@@ -115,7 +118,7 @@ def apply_text_overlay(img, quote_text):
     wm_bbox = draw.textbbox((0, 0), watermark, font=font_wm)
     wm_w = wm_bbox[2] - wm_bbox[0]
     wm_x = (1080 - wm_w) // 2
-    draw.text((wm_x, 990), watermark, font=font_wm, fill=(255, 255, 255, 160))
+    draw.text((wm_x, 995), watermark, font=font_wm, fill=(255, 255, 255, 170))
 
     return img.convert("RGB")
 
@@ -126,7 +129,7 @@ def generate_image(quote_text):
     
     targets = [
         (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1150, "seed": seed, "model": "flux", "nologo": "true"}),
-        (".".join(["picsum", "photos"]), ["seed", seed, "1080", "1080"], None)
+        (".".join(["picsum", "photos"]), ["seed", seed, "1080", "1150"], None)
     ]
     
     for host, parts, params in targets:
@@ -134,20 +137,17 @@ def generate_image(quote_text):
             url = build_url(host, parts, params)
             resp = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
             if resp.status_code == 200 and len(resp.content) > 10000:
-                with open("post.jpg", "wb") as f:
+                with open("raw.jpg", "wb") as f:
                     f.write(resp.content)
-                with Image.open("post.jpg") as img:
-                    # Отрезаем нижние 50px от возможного водяного знака нейросети
-                    if img.height > 1080:
-                        img = img.crop((0, 0, img.width, img.height - 50))
-                    img = img.convert("L")
-                    img = ImageEnhance.Contrast(img).enhance(1.25)
+                with Image.open("raw.jpg") as img:
                     final_img = apply_text_overlay(img, quote_text)
                     final_img.save("post.jpg", "JPEG", quality=92)
-                print("Картинка сохранена и оформлена из:", host)
+                if os.path.exists("raw.jpg"):
+                    os.remove("raw.jpg")
+                print("Картинка успешно обработана из:", host)
                 return seed
         except Exception as e:
-            print("Источник не ответил:", host, e)
+            print("Ошибка на источнике:", host, e)
             
     return seed
 
