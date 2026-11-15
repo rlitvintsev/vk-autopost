@@ -126,7 +126,7 @@ def download_image(quote_text):
     create_fallback_card(quote_text)
 
 def post_to_vk(text):
-    vk_host = "://vk.com"
+    vk_host = ".".join(["api", "vk", "com"])
     
     # 1. Получаем сервер для загрузки фото на стену
     url_1 = build_url(vk_host, ["method", "photos.getWallUploadServer"])
