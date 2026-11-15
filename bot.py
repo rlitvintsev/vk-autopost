@@ -1,7 +1,9 @@
 import datetime
+import os
 import random
 import urllib.parse
 import requests
+from PIL import Image, ImageEnhance
 
 TOPICS = [
     "одинокий волк, ночь, дождь, верность своим принципам",
@@ -11,24 +13,38 @@ TOPICS = [
     "советские панельки ночью, тишина, размышления о жизни"
 ]
 
+IMAGE_PROMPTS = [
+    "black and white photography, fierce lone wolf in rainy dark city night, cinematic lighting, 8k",
+    "black tinted BMW E38 on empty foggy night road, glowing headlights, wet asphalt, moody, 8k",
+    "athletic man doing pull-ups on outdoor street workout bar at night, misty lights, black and white, 8k",
+    "moody Soviet panel apartment district at night, fog, dim yellow lights, 35mm film grain, cinematic"
+]
+
 BACKUP_QUOTES = [
     "Волк слабее льва и тигра, но в цирке он не выступает. Держи свой курс и не прогибайся под толпу.",
     "Брат за брата — это не красивая фраза для статуса, а проверка в самый темный час. Настоящих единицы, остальные просто массовка.",
     "Ночной город лечит лучше любого психолога. Включил фары, выехал на пустую трассу и все лишние мысли остались за спиной.",
-    "Не важно, сколько раз ты упал на холодном асфальте. Важно, с каким взглядом ты поднялся и пошел дальше."
+    "Не важно, сколько раз ты упал на холодном асфальте. Важно, с каким взглядом ты поднялся и пошел дальше.",
+    "Тишина громче любых обещаний. Кто реально делает вещи, тому не нужно кричать об этом на каждом перекрестке."
 ]
+
+def build_url(host, path_parts, query_dict=None):
+    path = "/" + "/".join(urllib.parse.quote(str(p), safe="") for p in path_parts)
+    query = urllib.parse.urlencode(query_dict) if query_dict else ""
+    return urllib.parse.urlunparse(("https", host, path, "", query, ""))
 
 def generate_text():
     topic = random.choice(TOPICS)
-    prompt = urllib.parse.quote(
-        f"Напиши короткую, суровую пацанскую цитату на русском языке для ВК на тему: {topic}. "
-        "Максимум 2 предложения, без кавычек и хэштегов."
+    prompt = (
+        f"Напиши одну короткую, суровую пацанскую цитату на русском языке для ВК на тему: {topic}. "
+        "Максимум 2 предложения. Без кавычек, без хэштегов и без вступлений."
     )
     seed = random.randint(1, 999999)
-    text_host = ".".join(["text", "pollinations", "ai"])
+    host = ".".join(["text", "pollinations", "ai"])
     
     try:
-        r = requests.get(f"https://{text_host}/{prompt}?seed={seed}", timeout=25)
+        url = build_url(host, [prompt], {"seed": seed})
+        r = requests.get(url, timeout=25)
         if r.status_code == 200 and len(r.text.strip()) > 10:
             clean = r.text.strip().strip('"«»')
             if not clean.startswith("<!DOCTYPE") and not clean.startswith("<html"):
@@ -38,30 +54,61 @@ def generate_text():
         
     return random.choice(BACKUP_QUOTES)
 
-quote = generate_text()
-print("Сгенерирован пост:", quote)
+def generate_image():
+    img_prompt = random.choice(IMAGE_PROMPTS)
+    seed = random.randint(1, 999999)
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    targets = [
+        (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1350, "seed": seed, "nologo": "true"}),
+        (".".join(["picsum", "photos"]), ["seed", seed, "1080", "1350"], None)
+    ]
+    
+    for host, parts, params in targets:
+        try:
+            url = build_url(host, parts, params)
+            resp = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
+            if resp.status_code == 200 and len(resp.content) > 10000:
+                with open("post.jpg", "wb") as f:
+                    f.write(resp.content)
+                # Делаем атмосферную ч/б обработку с повышенным контрастом
+                with Image.open("post.jpg") as img:
+                    img = img.convert("L")
+                    img = ImageEnhance.Contrast(img).enhance(1.25)
+                    img = img.convert("RGB")
+                    img.save("post.jpg", "JPEG", quality=92)
+                print("Картинка сохранена из:", host)
+                return seed
+        except Exception as e:
+            print("Источник не ответил:", host, e)
+            
+    return seed
 
-seed = random.randint(1, 999999)
-img_host = ".".join(["picsum", "photos"])
-vk_host = ".".join(["vk", "com"])
-img_url = f"https://{img_host}/seed/{seed}/1080/1350?grayscale"
-now = datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+if __name__ == "__main__":
+    quote = generate_text()
+    print("Сгенерирован текст:", quote)
+    img_seed = generate_image()
+    
+    raw_host = ".".join(["raw", "githubusercontent", "com"])
+    vk_host = ".".join(["vk", "com"])
+    direct_img_url = build_url(raw_host, ["rlitvintsev", "vk-autopost", "main", "post.jpg"], {"v": img_seed})
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
-rss = f"""<?xml version="1.0" encoding="UTF-8" ?>
+    rss = f"""<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 <channel>
-  <title>Пацанский паблик</title>
+  <title>Брат за брата</title>
   <link>https://{vk_host}</link>
   <description>Цитаты со смыслом</description>
   <item>
-    <title>{quote[:45]}...</title>
+    <title>{quote}</title>
     <description>{quote}</description>
-    <enclosure url="{img_url}" type="image/jpeg" />
-    <guid>{seed}</guid>
+    <enclosure url="{direct_img_url}" type="image/jpeg" />
+    <guid>post-{img_seed}</guid>
     <pubDate>{now}</pubDate>
   </item>
 </channel>
 </rss>"""
 
-with open("feed.xml", "w", encoding="utf-8") as f:
-    f.write(rss)
+    with open("feed.xml", "w", encoding="utf-8") as f:
+        f.write(rss)
