@@ -101,7 +101,7 @@ if __name__ == "__main__":
   <link>https://{vk_host}</link>
   <description>Цитаты со смыслом</description>
   <item>
-    <title>{quote}</title>
+    <title></title>
     <description>{quote}</description>
     <enclosure url="{direct_img_url}" type="image/jpeg" />
     <guid>post-{img_seed}</guid>
