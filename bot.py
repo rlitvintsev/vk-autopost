@@ -21,25 +21,40 @@ IMAGE_PROMPTS = [
     "moody Soviet panel apartment district at night, fog, dim yellow lights, 35mm film grain, cinematic"
 ]
 
+BACKUP_QUOTES = [
+    "Волк слабее льва и тигра, но в цирке он не выступает. Держи свой курс и не прогибайся под толпу.",
+    "Брат за брата — это не красивая фраза для статуса, а проверка в самый темный час. Настоящих единицы, остальные просто массовка.",
+    "Ночной город лечит лучше любого психолога. Включил фары, выехал на пустую трассу и все лишние мысли остались за спиной.",
+    "Не важно, сколько раз ты упал на холодном асфальте. Важно, с каким взглядом ты поднялся и пошел дальше.",
+    "Тишина громче любых обещаний. Кто реально делает вещи, тому не нужно кричать об этом на каждом перекрестке.",
+    "Время расставит всех по своим местам. Главное — самому остаться человеком, когда вокруг одни маски."
+]
+
 def generate_text():
     topic = random.choice(TOPICS)
     prompt = (
-        f"Напиши одну короткую, суровую и глубокую пацанскую цитату на русском языке для паблика ВКонтакте на тему: {topic}. "
-        "Максимум 2 предложения. Без кавычек, без хэштегов, без вступлений и пояснений. "
-        "Только сам текст цитаты в брутальном жизненном стиле."
+        f"Напиши одну короткую, суровую пацанскую цитату на русском языке для паблика ВК на тему: {topic}. "
+        "Максимум 2 предложения. Без кавычек, без хэштегов и без вступлений."
     )
+    encoded_prompt = urllib.parse.quote(prompt)
+    seed = random.randint(1, 999999)
     
-    response = requests.post(
-        url="https://pollinations.ai",
-        json={
-            "messages": [{"role": "user", "content": prompt}],
-            "model": "openai",
-            "seed": random.randint(1, 999999)
-        },
-        timeout=30
-    )
-    response.raise_for_status()
-    return response.text.strip()
+    urls = [
+        f"https://text.pollinations.ai/{encoded_prompt}?seed={seed}",
+        f"https://pollinations.ai{encoded_prompt}?seed={seed}"
+    ]
+    
+    for url in urls:
+        try:
+            response = requests.get(url, timeout=25)
+            if response.status_code == 200 and len(response.text.strip()) > 10:
+                text = response.text.strip().strip('"').strip("«»")
+                if not text.startswith("<!DOCTYPE") and not text.startswith("<html"):
+                    return text
+        except Exception as e:
+            print("Ошибка текстового API:", e)
+            
+    return random.choice(BACKUP_QUOTES)
 
 def download_image():
     img_prompt = random.choice(IMAGE_PROMPTS)
@@ -47,9 +62,10 @@ def download_image():
     encoded_prompt = urllib.parse.quote(img_prompt)
     url = f"https://pollinations.ai{encoded_prompt}?width=1080&height=1350&seed={seed}&nologo=true"
     
-    img_data = requests.get(url, timeout=60).content
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
     with open("post.jpg", "wb") as f:
-        f.write(img_data)
+        f.write(resp.content)
 
 def post_to_vk(text):
     # 1. Получаем сервер для загрузки фото на стену
@@ -78,7 +94,8 @@ def post_to_vk(text):
     ).json()
     print("Ответ saveWallPhoto:", save_resp)
     
-    photo_info = save_resp["response"][0]
+    resp_data = save_resp["response"]
+    photo_info = resp_data[0] if isinstance(resp_data, list) else resp_data
     attachment = f"photo{photo_info['owner_id']}_{photo_info['id']}"
 
     # 4. Публикуем пост от имени группы
@@ -100,4 +117,5 @@ if __name__ == "__main__":
     print("Сгенерирован текст:", quote)
     download_image()
     post_to_vk(quote)
+
 
