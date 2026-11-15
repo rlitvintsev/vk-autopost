@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>Пацанский паблик</title>
+  <link>https://vk.com</link>
+  <description>Цитаты со смыслом</description>
+  <item>
+    <title>Не важно, сколько раз ты упал на холодном асф...</title>
+    <description>Не важно, сколько раз ты упал на холодном асфальте. Важно, с каким взглядом ты поднялся и пошел дальше.</description>
+    <enclosure url="https://picsum.photos/seed/688655/1080/1350?grayscale" type="image/jpeg" />
+    <guid>688655</guid>
+    <pubDate>Sun, 15 Nov 2026 09:14:29 +0000</pubDate>
+  </item>
+</channel>
+</rss>
