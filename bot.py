@@ -59,8 +59,8 @@ def generate_image():
     seed = random.randint(1, 999999)
     headers = {"User-Agent": "Mozilla/5.0"}
     
-    targets = [
-        (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1350, "seed": seed, "nologo": "true"}),
+       targets = [
+        (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1400, "seed": seed, "model": "flux", "nologo": "true"}),
         (".".join(["picsum", "photos"]), ["seed", seed, "1080", "1350"], None)
     ]
     
