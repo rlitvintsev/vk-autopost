@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import random
 import textwrap
@@ -15,10 +16,10 @@ TOPICS = [
 ]
 
 IMAGE_PROMPTS = [
-    "photorealistic black and white photo, fierce lone wolf standing in rainy dark alley at night, glowing eyes, cinematic lighting, 35mm film",
-    "photorealistic moody shot of black tinted BMW E38 parked on wet asphalt at night, fog, glowing angel eyes headlights, dark aesthetic",
-    "back view of a man in black hoodie and cap standing on a rooftop looking at misty Soviet panel buildings at night, atmospheric dark photography",
-    "vintage black Mercedes W124 driving through heavy night fog on empty highway, red taillights reflection on wet road, cinematic moody"
+    "black and white photo, lone wolf in rainy dark alley at night, cinematic lighting, 35mm film",
+    "moody shot of black BMW E38 parked on wet asphalt at night, fog, glowing headlights, dark aesthetic",
+    "back view of a man in black hoodie standing on a rooftop looking at misty city at night, dark photography",
+    "vintage black Mercedes W124 driving through night fog on empty highway, wet road, cinematic moody"
 ]
 
 BACKUP_QUOTES = [
@@ -68,10 +69,18 @@ def generate_text():
         
     return random.choice(BACKUP_QUOTES)
 
+def create_fallback_bg():
+    img = Image.new("RGB", (1080, 1080), (18, 18, 22))
+    draw = ImageDraw.Draw(img)
+    for y in range(1080):
+        shade = int(15 + (y / 1080) * 25)
+        draw.line([(0, y), (1080, y)], fill=(shade, shade, shade + 4))
+    return img
+
 def apply_text_overlay(img, quote_text):
-    # Отрезаем нижние 85px, чтобы гарантированно убрать логотип pollinations.ai
-    crop_h = max(100, img.height - 85)
-    img = img.crop((0, 0, img.width, crop_h))
+    # Отрезаем нижние 80px, чтобы убрать логотип pollinations.ai
+    if img.height > 200:
+        img = img.crop((0, 0, img.width, img.height - 80))
     
     # Делаем черно-белым, повышаем контраст и приводим к квадрату 1080x1080
     img = img.convert("L")
@@ -129,27 +138,32 @@ def generate_image(quote_text):
     headers = {"User-Agent": "Mozilla/5.0"}
     
     targets = [
-        (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1080, "height": 1150, "seed": seed, "model": "flux", "nologo": "true"}),
-        (".".join(["picsum", "photos"]), ["seed", str(seed), "1080", "1150"], None)
+        (".".join(["image", "pollinations", "ai"]), ["prompt", img_prompt], {"width": 1024, "height": 1024, "seed": seed, "model": "flux", "nologo": "true"}),
+        (".".join(["picsum", "photos"]), ["seed", str(seed), "1080", "1080"], None)
     ]
     
+    base_img = None
     for host, parts, params in targets:
         try:
             url = build_url(host, parts, params)
             resp = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
-            if resp.status_code == 200 and len(resp.content) > 10000:
-                with open("raw.jpg", "wb") as f:
-                    f.write(resp.content)
-                with Image.open("raw.jpg") as img:
-                    final_img = apply_text_overlay(img, quote_text)
-                    final_img.save("post.jpg", "JPEG", quality=92)
-                if os.path.exists("raw.jpg"):
-                    os.remove("raw.jpg")
-                print("Картинка успешно обработана из:", host)
-                return seed
+            ctype = resp.headers.get("Content-Type", "")
+            print(f"Ответ от {host}: статус={resp.status_code}, тип={ctype}, байт={len(resp.content)}")
+            if resp.status_code == 200 and "image" in ctype and len(resp.content) > 10000:
+                base_img = Image.open(io.BytesIO(resp.content))
+                base_img.load()
+                print("Успешно загружен фон из:", host)
+                break
         except Exception as e:
             print("Ошибка на источнике:", host, e)
-            
+
+    if base_img is None:
+        print("Используем запасной темный фон")
+        base_img = create_fallback_bg()
+
+    final_img = apply_text_overlay(base_img, quote_text)
+    final_img.save("post.jpg", "JPEG", quality=92)
+    print("Итоговый post.jpg успешно сохранен")
     return seed
 
 if __name__ == "__main__":
