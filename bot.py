@@ -30,22 +30,27 @@ BACKUP_QUOTES = [
     "Время расставит всех по своим местам. Главное — самому остаться человеком, когда вокруг одни маски."
 ]
 
+def build_url(host, path_parts, query_dict=None):
+    path = "/" + "/".join(urllib.parse.quote(str(p), safe="") for p in path_parts)
+    query = urllib.parse.urlencode(query_dict) if query_dict else ""
+    return urllib.parse.urlunparse(("https", host, path, "", query, ""))
+
 def generate_text():
     topic = random.choice(TOPICS)
     prompt = (
         f"Напиши одну короткую, суровую пацанскую цитату на русском языке для паблика ВК на тему: {topic}. "
         "Максимум 2 предложения. Без кавычек, без хэштегов и без вступлений."
     )
-    encoded_prompt = urllib.parse.quote(prompt)
     seed = random.randint(1, 999999)
     
-    urls = [
-        f"https://pollinations.ai{encoded_prompt}?seed={seed}",
-        f"https://pollinations.ai{encoded_prompt}?seed={seed}"
+    targets = [
+        ("text.pollinations.ai", [prompt], {"seed": seed}),
+        ("gen.pollinations.ai", ["text", prompt], {"seed": seed})
     ]
     
-    for url in urls:
+    for host, parts, params in targets:
         try:
+            url = build_url(host, parts, params)
             response = requests.get(url, timeout=25)
             if response.status_code == 200 and len(response.text.strip()) > 10:
                 text = response.text.strip().strip('"').strip("«»")
@@ -59,30 +64,34 @@ def generate_text():
 def download_image():
     img_prompt = random.choice(IMAGE_PROMPTS)
     seed = random.randint(1, 999999)
-    encoded_prompt = urllib.parse.quote(img_prompt)
     
-    img_urls = [
-        f"https://pollinations.ai{encoded_prompt}?width=1080&height=1350&seed={seed}&nologo=true",
-        f"https://picsum.photos{seed}/1080/1350?grayscale"
+    img_targets = [
+        ("gen.pollinations.ai", ["image", img_prompt], {"width": 1080, "height": 1350, "seed": seed, "nologo": "true"}),
+        ("image.pollinations.ai", ["prompt", img_prompt], {"width": 1080, "height": 1350, "seed": seed, "nologo": "true"}),
+        ("picsum.photos", ["seed", seed, "1080", "1350"], {"grayscale": ""})
     ]
     
-    for url in img_urls:
+    for host, parts, params in img_targets:
         try:
+            url = build_url(host, parts, params)
             resp = requests.get(url, timeout=60)
             if resp.status_code == 200 and len(resp.content) > 5000:
                 with open("post.jpg", "wb") as f:
                     f.write(resp.content)
-                print("Картинка успешно скачана с:", url[:40])
+                print("Картинка успешно скачана с:", host)
                 return
         except Exception as e:
-            print("Ошибка загрузки картинки:", e)
+            print("Ошибка загрузки картинки:", host, e)
             
     raise RuntimeError("Не удалось скачать картинку ни с одного источника")
 
 def post_to_vk(text):
+    vk_host = "://vk.com"
+    
     # 1. Получаем сервер для загрузки фото на стену
+    url_1 = build_url(vk_host, ["method", "photos.getWallUploadServer"])
     upload_url_resp = requests.get(
-        "https://vk.com",
+        url_1,
         params={"group_id": VK_GROUP_ID, "access_token": VK_TOKEN, "v": "5.199"}
     ).json()
     print("Ответ getWallUploadServer:", upload_url_resp)
@@ -93,8 +102,9 @@ def post_to_vk(text):
         upload_resp = requests.post(upload_url, files={"photo": f}).json()
 
     # 3. Сохраняем фото в альбоме стены
+    url_3 = build_url(vk_host, ["method", "photos.saveWallPhoto"])
     save_resp = requests.post(
-        "https://vk.com",
+        url_3,
         params={
             "group_id": VK_GROUP_ID,
             "photo": upload_resp["photo"],
@@ -111,8 +121,9 @@ def post_to_vk(text):
     attachment = f"photo{photo_info['owner_id']}_{photo_info['id']}"
 
     # 4. Публикуем пост от имени группы
+    url_4 = build_url(vk_host, ["method", "wall.post"])
     post_resp = requests.post(
-        "https://vk.com",
+        url_4,
         params={
             "owner_id": -VK_GROUP_ID,
             "from_group": 1,
@@ -129,4 +140,5 @@ if __name__ == "__main__":
     print("Сгенерирован текст:", quote)
     download_image()
     post_to_vk(quote)
+
 
