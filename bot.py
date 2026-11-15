@@ -35,18 +35,48 @@ def build_url(host, path_parts, query_dict=None):
     query = urllib.parse.urlencode(query_dict) if query_dict else ""
     return urllib.parse.urlunparse(("https", host, path, "", query, ""))
 
-def ensure_font():
-    font_path = "font.ttf"
-    if not os.path.exists(font_path):
-        font_url = "https://github.com"
+def load_working_font(size):
+    candidates = [
+        "font.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+    ]
+    
+    # Если локальный font.ttf битый — удаляем его и пробуем скачать заново
+    if os.path.exists("font.ttf"):
         try:
-            r = requests.get(font_url, timeout=20)
-            if r.status_code == 200 and len(r.content) > 10000:
-                with open(font_path, "wb") as f:
-                    f.write(r.content)
-        except Exception as e:
-            print("Не удалось скачать шрифт:", e)
-    return font_path if os.path.exists(font_path) else None
+            ImageFont.truetype("font.ttf", size)
+        except Exception:
+            print("Обнаружен битый font.ttf, удаляем...")
+            os.remove("font.ttf")
+
+    if not os.path.exists("font.ttf"):
+        font_urls = [
+            "https://githubusercontent.com",
+            "https://github.com"
+        ]
+        for url in font_urls:
+            try:
+                r = requests.get(url, timeout=15)
+                if r.status_code == 200 and len(r.content) > 20000:
+                    with open("font.ttf", "wb") as f:
+                        f.write(r.content)
+                    ImageFont.truetype("font.ttf", size)
+                    print("Успешно скачан и проверен шрифт из:", url)
+                    break
+            except Exception as e:
+                print("Не подошел источник шрифта:", url, e)
+                if os.path.exists("font.ttf"):
+                    os.remove("font.ttf")
+
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+
+    return ImageFont.load_default()
 
 def generate_text():
     topic = random.choice(TOPICS)
@@ -93,19 +123,8 @@ def apply_text_overlay(img, quote_text):
     img = Image.alpha_composite(img, overlay)
 
     draw = ImageDraw.Draw(img)
-    font_path = ensure_font()
-
-    if font_path:
-        font_main = ImageFont.truetype(font_path, 48)
-        font_wm = ImageFont.truetype(font_path, 26)
-        try:
-            font_main.set_variation_by_axes([700])
-            font_wm.set_variation_by_axes([600])
-        except Exception:
-            pass
-    else:
-        font_main = ImageFont.load_default()
-        font_wm = ImageFont.load_default()
+    font_main = load_working_font(48)
+    font_wm = load_working_font(26)
 
     # Разбиваем цитату на строки по 30 символов
     lines = textwrap.wrap(quote_text, width=30)
@@ -194,3 +213,4 @@ if __name__ == "__main__":
 
     with open("feed.xml", "w", encoding="utf-8") as f:
         f.write(rss)
+
