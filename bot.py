@@ -1,7 +1,10 @@
+
 import os
 import random
+import textwrap
 import urllib.parse
 import requests
+from PIL import Image, ImageDraw, ImageFont
 
 VK_TOKEN = os.environ["VK_TOKEN"]
 VK_GROUP_ID = int(os.environ["VK_GROUP_ID"])
@@ -61,29 +64,66 @@ def generate_text():
             
     return random.choice(BACKUP_QUOTES)
 
-def download_image():
+def create_fallback_card(text):
+    print("Генерирую стильную пацанскую карточку локально...")
+    width, height = 1080, 1350
+    img = Image.new("RGB", (width, height), color=(15, 17, 21))
+    draw = ImageDraw.Draw(img)
+    
+    # Рисуем тонкую серую рамку по краям
+    draw.rectangle([50, 50, width - 50, height - 50], outline=(80, 85, 95), width=3)
+    
+    # Подключаем системный шрифт Ubuntu с поддержкой кириллицы
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+    ]
+    font = None
+    for fp in font_paths:
+        if os.path.exists(fp):
+            font = ImageFont.truetype(fp, 48)
+            break
+    if font is None:
+        font = ImageFont.load_default()
+        
+    wrapped_text = textwrap.fill(text.upper(), width=26)
+    bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=18)
+    text_w = bbox - bbox
+    text_h = bbox - bbox
+    
+    x = (width - text_w) / 2
+    y = (height - text_h) / 2
+    draw.multiline_text((x, y), wrapped_text, fill=(240, 240, 245), font=font, align="center", spacing=18)
+    img.save("post.jpg", "JPEG", quality=95)
+
+def download_image(quote_text):
     img_prompt = random.choice(IMAGE_PROMPTS)
     seed = random.randint(1, 999999)
+    headers = {"User-Agent": "Mozilla/5.0"}
     
     img_targets = [
-        ("gen.pollinations.ai", ["image", img_prompt], {"width": 1080, "height": 1350, "seed": seed, "nologo": "true"}),
         ("image.pollinations.ai", ["prompt", img_prompt], {"width": 1080, "height": 1350, "seed": seed, "nologo": "true"}),
-        ("picsum.photos", ["seed", seed, "1080", "1350"], {"grayscale": ""})
+        ("picsum.photos", ["seed", seed, "1080", "1350"], None)
     ]
     
     for host, parts, params in img_targets:
         try:
             url = build_url(host, parts, params)
-            resp = requests.get(url, timeout=60)
-            if resp.status_code == 200 and len(resp.content) > 5000:
+            resp = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
+            if resp.status_code == 200 and len(resp.content) > 10000:
                 with open("post.jpg", "wb") as f:
                     f.write(resp.content)
+                # Проверяем, что скачалась именно картинка, а не HTML-страница ошибки
+                with Image.open("post.jpg") as test_img:
+                    test_img = test_img.convert("L").convert("RGB")
+                    test_img.save("post.jpg", "JPEG", quality=95)
                 print("Картинка успешно скачана с:", host)
                 return
         except Exception as e:
-            print("Ошибка загрузки картинки:", host, e)
+            print("Не сработал источник:", host, e)
             
-    raise RuntimeError("Не удалось скачать картинку ни с одного источника")
+    # Если ни один сервис не отдал фото — рисуем карточку с цитатой сами
+    create_fallback_card(quote_text)
 
 def post_to_vk(text):
     vk_host = "://vk.com"
@@ -117,7 +157,7 @@ def post_to_vk(text):
     print("Ответ saveWallPhoto:", save_resp)
     
     resp_data = save_resp["response"]
-    photo_info = resp_data[0] if isinstance(resp_data, list) else resp_data
+    photo_info = resp_data if isinstance(resp_data, list) else resp_data
     attachment = f"photo{photo_info['owner_id']}_{photo_info['id']}"
 
     # 4. Публикуем пост от имени группы
@@ -138,7 +178,5 @@ def post_to_vk(text):
 if __name__ == "__main__":
     quote = generate_text()
     print("Сгенерирован текст:", quote)
-    download_image()
+    download_image(quote)
     post_to_vk(quote)
-
-
