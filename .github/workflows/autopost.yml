@@ -18,13 +18,13 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests pillow
 
       - name: Update feed
         run: |
           python bot.py
           git config user.name "bot"
           git config user.email "bot@://github.com"
-          git add feed.xml
+          git add feed.xml post.jpg
           git commit -m "new post" || exit 0
           git push
