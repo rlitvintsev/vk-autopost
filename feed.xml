@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 <channel>
-  <title>Пацанский паблик</title>
+  <title>Брат за брата</title>
   <link>https://vk.com</link>
   <description>Цитаты со смыслом</description>
   <item>
-    <title>Брат за брата, даже если под лавой кладут ист...</title>
-    <description>Брат за брата, даже если под лавой кладут истину. Проверка временем — они остались, а лживые вылетели.</description>
-    <enclosure url="https://picsum.photos/seed/790819/1080/1350?grayscale" type="image/jpeg" />
-    <guid>790819</guid>
-    <pubDate>Sun, 15 Nov 2026 09:24:44 +0000</pubDate>
+    <title>Побредает в ночи одинокий волк, дождь стучит, как клич отдалённого миссия. Верность своим принципам – его щит в мраке, и ни один шторм его не сделает слабее.</title>
+    <description>Побредает в ночи одинокий волк, дождь стучит, как клич отдалённого миссия. Верность своим принципам – его щит в мраке, и ни один шторм его не сделает слабее.</description>
+    <enclosure url="https://raw.githubusercontent.com/rlitvintsev/vk-autopost/main/post.jpg?v=276717" type="image/jpeg" />
+    <guid>post-276717</guid>
+    <pubDate>Sun, 15 Nov 2026 09:34:12 +0000</pubDate>
   </item>
 </channel>
 </rss>
