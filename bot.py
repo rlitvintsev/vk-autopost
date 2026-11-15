@@ -14,10 +14,10 @@ TOPICS = [
 ]
 
 IMAGE_PROMPTS = [
-    "black and white photography, fierce lone wolf in rainy dark city night, cinematic lighting, 8k",
-    "black tinted BMW E38 on empty foggy night road, glowing headlights, wet asphalt, moody, 8k",
-    "athletic man doing pull-ups on outdoor street workout bar at night, misty lights, black and white, 8k",
-    "moody Soviet panel apartment district at night, fog, dim yellow lights, 35mm film grain, cinematic"
+    "photorealistic black and white photo, fierce lone wolf standing in rainy dark alley at night, glowing eyes, cinematic lighting, 35mm film",
+    "photorealistic moody shot of black tinted BMW E38 parked on wet asphalt at night, fog, glowing angel eyes headlights, dark aesthetic",
+    "back view of a man in black hoodie and cap standing on a rooftop looking at misty Soviet panel buildings at night, atmospheric dark photography",
+    "vintage black Mercedes W124 driving through heavy night fog on empty highway, red taillights reflection on wet road, cinematic moody"
 ]
 
 BACKUP_QUOTES = [
