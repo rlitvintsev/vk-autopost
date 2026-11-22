@@ -8,24 +8,7 @@ import urllib.parse
 import requests
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
-TOPICS = [
-    "настоящая мужская дружба и верность слову",
-    "дисциплина, спорт и работа над собой без оправданий",
-    "одиночество, тишина и умение держать удар",
-    "ночная дорога, пустая трасса и движение к своей цели",
-    "цена поступков, уважение и умение вовремя промолчать",
-    "проверка людей временем и трудными ситуациями",
-    "характер, выдержка и спокойствие в любой ситуации"
-]
-
-IMAGE_PROMPTS = [
-    "black and white photo lone wolf in dark alley at night rain",
-    "black bmw e38 parked on wet night street fog headlights",
-    "man in black hoodie standing on roof at night misty city",
-    "black mercedes driving on empty foggy highway at night"
-]
-
-BACKUP_QUOTES = [
+QUOTES_POOL = [
     "Волк слабее льва и тигра, но в цирке он не выступает. Держи свой курс и не прогибайся под толпу.",
     "Брат за брата — это не красивая фраза для статуса, а проверка в самый темный час. Настоящих единицы, остальные просто массовка.",
     "Ночной город лечит лучше любого психолога. Включил фары, выехал на пустую трассу и все лишние мысли остались за спиной.",
@@ -37,7 +20,34 @@ BACKUP_QUOTES = [
     "Цени тех, кто рядом не за красивые слова, а когда за спиной пусто и надеяться больше не на кого.",
     "Дисциплина — это когда делаешь то, что должен, даже если внутри всё горит и хочется всё бросить.",
     "Настоящий друг не тот, кто поддержит в празднике, а тот, кто приедет ночью без лишних вопросов.",
-    "Меньше слов, больше дела. В этой жизни уважают только тех, кто отвечает за каждый свой шаг."
+    "Меньше слов, больше дела. В этой жизни уважают только тех, кто отвечает за каждый свой шаг.",
+    "Характер закаляется не в комфорте, а там, где хочется сдаться, но ты всё равно идешь вперед.",
+    "Никогда не возвращайся туда, где тебя однажды предали. Люди не меняются, меняется только их выгода.",
+    "Спокойствие — это высшая форма силы. Когда ты уверен в себе, тебе не нужно никому ничего доказывать.",
+    "Пустая трасса и ночной дождь расставляют мысли по полкам быстрее любых советов.",
+    "Уважение не покупается деньгами и громкими словами. Оно зарабатывается годами и проверяется делом.",
+    "Если идешь к своей цели, будь готов идти один. Большинство отсеется еще на старте.",
+    "Верность своим принципам важнее чужого одобрения. Толпа сегодня хвалит, а завтра забывает.",
+    "Тот, кто умеет ждать и держать удар, в итоге забирает всё.",
+    "Не бойся остаться один. Бойся оказаться рядом с теми, кто улыбается в лицо и ждет твоей ошибки.",
+    "Настоящая мужская дружба не требует ежедневных звонков. Она проверяется одним звонком в три часа ночи.",
+    "Пока одни ищут оправдания, другие молча делают результат.",
+    "Цена слова измеряется поступками. Если не уверен, что сделаешь — лучше промолчи.",
+    "Самые тяжелые битвы человек выигрывает внутри себя, когда никто не видит и не аплодирует.",
+    "Дорога покоряется идущему. Даже самый длинный путь начинается с одного уверенного шага в темноту.",
+    "Не трать время на тех, кто тянет назад. Окружение либо поднимает тебя вверх, либо топит.",
+    "В темные времена сразу видно светлых людей. Держись за тех, кто не отвернулся.",
+    "Свобода — это когда тебе плевать, что о тебе подумают те, кто тебя даже не знает.",
+    "Будь как сталь: чем сильнее бьют, тем крепче становишься."
+]
+
+IMAGE_PROMPTS = [
+    "black and white photo lone wolf in dark alley at night rain",
+    "black bmw e38 parked on wet night street fog headlights",
+    "man in black hoodie standing on roof at night misty city",
+    "black mercedes driving on empty foggy highway at night",
+    "dark misty forest road at night cinematic moody photography",
+    "boxer wrapping hands in dark gym moody dramatic lighting"
 ]
 
 def build_url(host, path_parts, query_dict=None):
@@ -60,36 +70,7 @@ def get_system_font(size):
     return ImageFont.load_default()
 
 def generate_text():
-    topic = random.choice(TOPICS)
-    prompt = (
-        f"Напиши одну короткую, жизненную пацанскую цитату на грамотном русском языке на тему: {topic}. "
-        "Требования: строго 1-2 коротких предложения, простой живой русский язык без странных метафор, без кавычек и без хэштегов. "
-        "Примеры хорошего стиля:\n"
-        "1. Время само расставит всех по местам. Одни останутся рядом в трудную минуту, другие исчезнут при первом ветре.\n"
-        "2. Сила не в том, чтобы кричать о своей правоте. Сила в том, чтобы молча сделать так, как считаешь нужным.\n"
-        "Напиши только саму цитату:"
-    )
-    seed = random.randint(1, 999999)
-    host = ".".join(["text", "pollinations", "ai"])
-    
-    try:
-        url = build_url(host, [prompt], {"seed": seed, "model": "openai"})
-        r = requests.get(url, timeout=30)
-        if r.status_code == 200:
-            clean = r.text.strip().strip('"«»\'').replace("\n", " ")
-            if len(clean) > 3 and clean[0].isdigit() and clean[1] in ".)":
-                clean = clean[2:].strip()
-            if (
-                25 <= len(clean) <= 185
-                and not clean.startswith("<!DOCTYPE")
-                and not clean.startswith("<html")
-                and "Rate limit" not in clean
-            ):
-                return clean
-    except Exception as e:
-        print("Ошибка генерации текста:", e)
-        
-    return random.choice(BACKUP_QUOTES)
+    return random.choice(QUOTES_POOL)
 
 def create_fallback_bg():
     img = Image.new("RGB", (1080, 1080), (18, 18, 22))
@@ -141,17 +122,34 @@ def upload_to_cdn(filepath):
     try:
         with open(filepath, "rb") as f:
             r = requests.post(
+                "https://telegra.ph",
+                files={"file": ("post.jpg", f, "image/jpeg")},
+                timeout=20
+            )
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, list) and len(data) > 0 and "src" in data:
+                cdn_url = "https://telegra.ph" + data["src"]
+                print("Картинка загружена на Telegraph CDN:", cdn_url)
+                return cdn_url
+    except Exception as e:
+        print("Telegraph CDN не ответил:", e)
+
+    try:
+        with open(filepath, "rb") as f:
+            r = requests.post(
                 "https://catbox.moe",
-                data={"reqtype": "fileupload"},
+                data={"reqtype": "fileupload", "time": "72h"},
                 files={"fileToUpload": ("post.jpg", f, "image/jpeg")},
-                timeout=25
+                timeout=20
             )
         if r.status_code == 200 and r.text.strip().startswith("https://"):
             cdn_url = r.text.strip()
-            print("Картинка успешно загружена на CDN:", cdn_url)
+            print("Картинка загружена на Litterbox CDN:", cdn_url)
             return cdn_url
     except Exception as e:
-        print("Ошибка загрузки на CDN:", e)
+        print("Litterbox CDN не ответил:", e)
+
     return None
 
 def generate_image(quote_text):
@@ -205,7 +203,7 @@ def generate_image(quote_text):
 
 if __name__ == "__main__":
     quote = generate_text()
-    print("Сгенерирован текст:", quote)
+    print("Выбран текст:", quote)
     img_seed, img_filename, cdn_url = generate_image(quote)
     
     raw_host = ".".join(["raw", "githubusercontent", "com"])
@@ -230,8 +228,7 @@ if __name__ == "__main__":
 </channel>
 </rss>"""
 
-    with open("feed.xml", "w", encoding="utf-8") as f:
-        f.write(rss)
+
 
 
 
