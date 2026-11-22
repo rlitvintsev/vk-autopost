@@ -118,40 +118,6 @@ def apply_text_overlay(img, quote_text):
 
     return img.convert("RGB")
 
-def upload_to_cdn(filepath):
-    try:
-        with open(filepath, "rb") as f:
-            r = requests.post(
-                "https://telegra.ph",
-                files={"file": ("post.jpg", f, "image/jpeg")},
-                timeout=20
-            )
-        if r.status_code == 200:
-            data = r.json()
-            if isinstance(data, list) and len(data) > 0 and "src" in data:
-                cdn_url = "https://telegra.ph" + data["src"]
-                print("Картинка загружена на Telegraph CDN:", cdn_url)
-                return cdn_url
-    except Exception as e:
-        print("Telegraph CDN не ответил:", e)
-
-    try:
-        with open(filepath, "rb") as f:
-            r = requests.post(
-                "https://catbox.moe",
-                data={"reqtype": "fileupload", "time": "72h"},
-                files={"fileToUpload": ("post.jpg", f, "image/jpeg")},
-                timeout=20
-            )
-        if r.status_code == 200 and r.text.strip().startswith("https://"):
-            cdn_url = r.text.strip()
-            print("Картинка загружена на Litterbox CDN:", cdn_url)
-            return cdn_url
-    except Exception as e:
-        print("Litterbox CDN не ответил:", e)
-
-    return None
-
 def generate_image(quote_text):
     img_prompt = random.choice(IMAGE_PROMPTS)
     seed = random.randint(1, 999999)
@@ -169,6 +135,7 @@ def generate_image(quote_text):
             resp = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
             ctype = resp.headers.get("Content-Type", "")
             size_bytes = len(resp.content)
+            print(f"Ответ от {host}: статус={resp.status_code}, тип={ctype}, байт={size_bytes}")
             
             if "pollinations" in host and size_bytes == 56544:
                 continue
@@ -176,6 +143,7 @@ def generate_image(quote_text):
             if resp.status_code == 200 and "image" in ctype and size_bytes > 10000:
                 base_img = Image.open(io.BytesIO(resp.content))
                 base_img.load()
+                print("Успешно загружен фон из:", host)
                 break
         except Exception as e:
             print("Ошибка на источнике:", host, e)
@@ -197,18 +165,17 @@ def generate_image(quote_text):
     final_img = apply_text_overlay(base_img, quote_text)
     final_img.save(filepath, "JPEG", quality=92)
     final_img.save("post.jpg", "JPEG", quality=92)
-    
-    cdn_url = upload_to_cdn(filepath)
-    return seed, filename, cdn_url
+    print("Итоговый файл сохранен:", filepath)
+    return seed, filename
 
 if __name__ == "__main__":
     quote = generate_text()
     print("Выбран текст:", quote)
-    img_seed, img_filename, cdn_url = generate_image(quote)
+    img_seed, img_filename = generate_image(quote)
     
     raw_host = ".".join(["raw", "githubusercontent", "com"])
     vk_host = ".".join(["vk", "com"])
-    direct_img_url = cdn_url if cdn_url else build_url(raw_host, ["rlitvintsev", "vk-autopost", "main", "posts", img_filename])
+    direct_img_url = build_url(raw_host, ["rlitvintsev", "vk-autopost", "main", "posts", img_filename])
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
     rss = f"""<?xml version="1.0" encoding="UTF-8" ?>
@@ -220,6 +187,7 @@ if __name__ == "__main__":
   <lastBuildDate>{now}</lastBuildDate>
   <item>
     <title>#цитаты</title>
+    <link>https://{vk_host}</link>
     <description></description>
     <enclosure url="{direct_img_url}" type="image/jpeg" />
     <guid isPermaLink="false">post-{img_seed}</guid>
@@ -227,6 +195,9 @@ if __name__ == "__main__":
   </item>
 </channel>
 </rss>"""
+
+    with open("feed.xml", "w", encoding="utf-8") as f:
+        f.write(rss)
 
 
 
