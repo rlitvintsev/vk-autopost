@@ -25,6 +25,6 @@ jobs:
           python bot.py
           git config user.name "bot"
           git config user.email "bot@://github.com"
-          git add feed.xml post.jpg
+          git add -A feed.xml post.jpg posts/
           git commit -m "new post" || exit 0
           git push
