@@ -187,7 +187,7 @@ if __name__ == "__main__":
   <lastBuildDate>{now}</lastBuildDate>
   <item>
     <title>#цитаты</title>
-   <link>{direct_img_url}</link>
+    <link>https://vk.ru{img_seed}</link>
     <description></description>
     <enclosure url="{direct_img_url}" type="image/jpeg" />
     <guid isPermaLink="false">post-{img_seed}</guid>
