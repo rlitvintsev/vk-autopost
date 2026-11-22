@@ -77,7 +77,7 @@ def generate_text():
         r = requests.get(url, timeout=30)
         if r.status_code == 200:
             clean = r.text.strip().strip('"«»\'').replace("\n", " ")
-            if len(clean) > 3 and clean.isdigit() and clean in ".)":
+            if len(clean) > 3 and clean[0].isdigit() and clean[1] in ".)":
                 clean = clean[2:].strip()
             if (
                 25 <= len(clean) <= 185
@@ -206,7 +206,6 @@ if __name__ == "__main__":
   <lastBuildDate>{now}</lastBuildDate>
   <item>
     <title>#цитаты</title>
-    <link>https://{vk_host}/wall-1_{img_seed}</link>
     <description></description>
     <enclosure url="{direct_img_url}" type="image/jpeg" />
     <guid isPermaLink="false">post-{img_seed}</guid>
@@ -217,4 +216,5 @@ if __name__ == "__main__":
 
     with open("feed.xml", "w", encoding="utf-8") as f:
         f.write(rss)
+
 
