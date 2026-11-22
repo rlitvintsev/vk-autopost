@@ -18,6 +18,13 @@ TOPICS = [
     "характер, выдержка и спокойствие в любой ситуации"
 ]
 
+IMAGE_PROMPTS = [
+    "black and white photo lone wolf in dark alley at night rain",
+    "black bmw e38 parked on wet night street fog headlights",
+    "man in black hoodie standing on roof at night misty city",
+    "black mercedes driving on empty foggy highway at night"
+]
+
 BACKUP_QUOTES = [
     "Волк слабее льва и тигра, но в цирке он не выступает. Держи свой курс и не прогибайся под толпу.",
     "Брат за брата — это не красивая фраза для статуса, а проверка в самый темный час. Настоящих единицы, остальные просто массовка.",
@@ -33,6 +40,25 @@ BACKUP_QUOTES = [
     "Меньше слов, больше дела. В этой жизни уважают только тех, кто отвечает за каждый свой шаг."
 ]
 
+def build_url(host, path_parts, query_dict=None):
+    path = "/" + "/".join(urllib.parse.quote(str(p), safe="") for p in path_parts)
+    query = urllib.parse.urlencode(query_dict) if query_dict else ""
+    return urllib.parse.urlunparse(("https", host, path, "", query, ""))
+
+def get_system_font(size):
+    system_fonts = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
+    ]
+    for path in system_fonts:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
 def generate_text():
     topic = random.choice(TOPICS)
     prompt = (
@@ -47,15 +73,12 @@ def generate_text():
     host = ".".join(["text", "pollinations", "ai"])
     
     try:
-        # Используем модель openai (GPT-4o-mini через pollinations) — она пишет на русском в разы грамотнее
         url = build_url(host, [prompt], {"seed": seed, "model": "openai"})
         r = requests.get(url, timeout=30)
         if r.status_code == 200:
             clean = r.text.strip().strip('"«»\'').replace("\n", " ")
-            # Убираем случайную нумерацию в начале, если модель скопирует формат примера
-            if len(clean) > 3 and clean[0].isdigit() and clean[1] in ".)":
+            if len(clean) > 3 and clean.isdigit() and clean in ".)":
                 clean = clean[2:].strip()
-            # Проверяем адекватность длины (от 25 до 180 символов) и отсутствие HTML/ошибок
             if (
                 25 <= len(clean) <= 185
                 and not clean.startswith("<!DOCTYPE")
@@ -148,7 +171,6 @@ def generate_image(quote_text):
         base_img = create_fallback_bg()
 
     os.makedirs("posts", exist_ok=True)
-    # Оставляем только 15 последних картинок, чтобы старые не удалялись раньше, чем их заберет ВК
     old_files = sorted(glob.glob("posts/post_*.jpg"), key=os.path.getmtime)
     for old_f in old_files[:-15]:
         try:
@@ -161,7 +183,6 @@ def generate_image(quote_text):
 
     final_img = apply_text_overlay(base_img, quote_text)
     final_img.save(filepath, "JPEG", quality=92)
-    # Дублируем в post.jpg для удобного предпросмотра в корне репозитория
     final_img.save("post.jpg", "JPEG", quality=92)
     print("Итоговый файл сохранен:", filepath)
     return seed, filename
@@ -173,7 +194,6 @@ if __name__ == "__main__":
     
     raw_host = ".".join(["raw", "githubusercontent", "com"])
     vk_host = ".".join(["vk", "com"])
-    # Чистая прямая ссылка без ?v=... — парсер ВК гарантированно распознает её как JPEG
     direct_img_url = build_url(raw_host, ["rlitvintsev", "vk-autopost", "main", "posts", img_filename])
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
