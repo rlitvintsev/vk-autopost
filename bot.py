@@ -9,18 +9,13 @@ import requests
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 TOPICS = [
-    "одинокий волк, ночь, дождь, верность своим принципам",
-    "черная BMW на ночной трассе, туман, путь к цели",
-    "пацанская дружба, брат за брата, проверка временем",
-    "спортзал, дисциплина, работа над собой без оправданий",
-    "советские панельки ночью, тишина, размышления о жизни"
-]
-
-IMAGE_PROMPTS = [
-    "black and white photo lone wolf in dark alley at night rain",
-    "black bmw e38 parked on wet night street fog headlights",
-    "man in black hoodie standing on roof at night misty city",
-    "black mercedes driving on empty foggy highway at night"
+    "настоящая мужская дружба и верность слову",
+    "дисциплина, спорт и работа над собой без оправданий",
+    "одиночество, тишина и умение держать удар",
+    "ночная дорога, пустая трасса и движение к своей цели",
+    "цена поступков, уважение и умение вовремя промолчать",
+    "проверка людей временем и трудными ситуациями",
+    "характер, выдержка и спокойствие в любой ситуации"
 ]
 
 BACKUP_QUOTES = [
@@ -28,43 +23,45 @@ BACKUP_QUOTES = [
     "Брат за брата — это не красивая фраза для статуса, а проверка в самый темный час. Настоящих единицы, остальные просто массовка.",
     "Ночной город лечит лучше любого психолога. Включил фары, выехал на пустую трассу и все лишние мысли остались за спиной.",
     "Не важно, сколько раз ты упал на холодном асфальте. Важно, с каким взглядом ты поднялся и пошел дальше.",
-    "Тишина громче любых обещаний. Кто реально делает вещи, тому не нужно кричать об этом на каждом перекрестке."
+    "Тишина громче любых обещаний. Кто реально делает вещи, тому не нужно кричать об этом на каждом перекрестке.",
+    "Время само расставит всех по местам. Одни останутся рядом в трудную минуту, другие исчезнут при первом ветре.",
+    "Не оправдывайся перед теми, кто не прошел твой путь. Твои поступки скажут за тебя громче любых слов.",
+    "Сила не в том, чтобы кричать о своей правоте. Сила в том, чтобы молча сделать так, как считаешь нужным.",
+    "Цени тех, кто рядом не за красивые слова, а когда за спиной пусто и надеяться больше не на кого.",
+    "Дисциплина — это когда делаешь то, что должен, даже если внутри всё горит и хочется всё бросить.",
+    "Настоящий друг не тот, кто поддержит в празднике, а тот, кто приедет ночью без лишних вопросов.",
+    "Меньше слов, больше дела. В этой жизни уважают только тех, кто отвечает за каждый свой шаг."
 ]
-
-def build_url(host, path_parts, query_dict=None):
-    path = "/" + "/".join(urllib.parse.quote(str(p), safe="") for p in path_parts)
-    query = urllib.parse.urlencode(query_dict) if query_dict else ""
-    return urllib.parse.urlunparse(("https", host, path, "", query, ""))
-
-def get_system_font(size):
-    system_fonts = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
-    ]
-    for path in system_fonts:
-        if os.path.exists(path):
-            try:
-                return ImageFont.truetype(path, size)
-            except Exception:
-                continue
-    return ImageFont.load_default()
 
 def generate_text():
     topic = random.choice(TOPICS)
     prompt = (
-        f"Напиши одну короткую, суровую пацанскую цитату на русском языке для ВК на тему: {topic}. "
-        "Максимум 2 предложения. Без кавычек, без хэштегов и без вступлений."
+        f"Напиши одну короткую, жизненную пацанскую цитату на грамотном русском языке на тему: {topic}. "
+        "Требования: строго 1-2 коротких предложения, простой живой русский язык без странных метафор, без кавычек и без хэштегов. "
+        "Примеры хорошего стиля:\n"
+        "1. Время само расставит всех по местам. Одни останутся рядом в трудную минуту, другие исчезнут при первом ветре.\n"
+        "2. Сила не в том, чтобы кричать о своей правоте. Сила в том, чтобы молча сделать так, как считаешь нужным.\n"
+        "Напиши только саму цитату:"
     )
     seed = random.randint(1, 999999)
     host = ".".join(["text", "pollinations", "ai"])
     
     try:
-        url = build_url(host, [prompt], {"seed": seed})
+        # Используем модель openai (GPT-4o-mini через pollinations) — она пишет на русском в разы грамотнее
+        url = build_url(host, [prompt], {"seed": seed, "model": "openai"})
         r = requests.get(url, timeout=30)
-        if r.status_code == 200 and len(r.text.strip()) > 10:
-            clean = r.text.strip().strip('"«»')
-            if not clean.startswith("<!DOCTYPE") and not clean.startswith("<html") and "Rate limit" not in clean:
+        if r.status_code == 200:
+            clean = r.text.strip().strip('"«»\'').replace("\n", " ")
+            # Убираем случайную нумерацию в начале, если модель скопирует формат примера
+            if len(clean) > 3 and clean[0].isdigit() and clean[1] in ".)":
+                clean = clean[2:].strip()
+            # Проверяем адекватность длины (от 25 до 180 символов) и отсутствие HTML/ошибок
+            if (
+                25 <= len(clean) <= 185
+                and not clean.startswith("<!DOCTYPE")
+                and not clean.startswith("<html")
+                and "Rate limit" not in clean
+            ):
                 return clean
     except Exception as e:
         print("Ошибка генерации текста:", e)
